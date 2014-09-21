@@ -1,0 +1,7 @@
+Backups/
+*.dcu
+*.dll
+*.drc
+*.map
+__history/
+EraMap.identcache
