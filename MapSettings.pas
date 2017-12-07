@@ -8,22 +8,17 @@ AUTHOR:       Alexander Shostak (aka Berserker aka EtherniDee aka BerSoft)
 uses
   SysUtils,
   Utils, Log, Ini,
-  EraLog;
+  VFS, EraLog, MapExt;
 
 const
-  GAME_SETTINGS_FILE  = 'heroes3.ini';
-  ERA_VERSION         = '2.55';
+  GAME_SETTINGS_FILE = 'heroes3.ini';
   
   
-type
-  TDebugDestination = (DEST_CONSOLE, DEST_FILE);
-
+  LOG_FILE_NAME      = 'log.txt';
 
 var
-  DebugOpt: boolean;
-  
-  DebugDestination: TDebugDestination;
-  DebugFile:        string;
+  DebugOpt:           boolean;
+  DebugEverythingOpt: boolean;
 
 
 (***) implementation (***)
@@ -31,17 +26,42 @@ var
 
 function GetOptValue (const OptionName: string): string;
 const
-  ERA_SECTION = 'Era';
-  GAME_SETTINGS_FILE = 'heroes3.ini';
+  ERA_SECTION               = 'Era';
+  DEFAULT_ERA_SETTINGS_FILE = 'default era settings.ini';
 
 begin
-  if Ini.ReadStrFromIni(OptionName, ERA_SECTION, GAME_SETTINGS_FILE, result) then begin
+  if Ini.ReadStrFromIni(OptionName, ERA_SECTION, GAME_SETTINGS_FILE, result) or
+     Ini.ReadStrFromIni(OptionName, ERA_SECTION, DEFAULT_ERA_SETTINGS_FILE, result)
+  then begin
     result := SysUtils.Trim(result);
-  end // .IF
-  else begin
+  end else begin
     result := '';
-  end; // .ELSE
-end; // .FUNCTION GetOptValue
+  end; // .else
+end; // .function GetOptValue
+
+function GetOptBoolValue (const OptionName: string): boolean;
+begin
+  result := GetOptValue(OptionName) = '1';
+end; // .function GetOptBoolValue
+
+function GetDebugOpt (const OptionName: string): boolean;
+begin
+  result := DebugOpt and (DebugEverythingOpt or GetOptBoolValue(OptionName)); 
+end; // .function GetDebugOpt
+
+function GetOptIntValue (const OptionName: string): integer;
+var
+  OptVal: string;
+
+begin
+  OptVal := GetOptValue(OptionName);
+
+  if not TryStrToInt(OptVal, result) then begin
+    Log.Write('Settings', 'GetOptIntValue', 'Error. Invalid option "' + OptionName
+                                            + '" value: "' + OptVal + '". Assumed 0');
+    result := 0;
+  end; // .if
+end; // .function GetOptIntValue
 
 procedure InstallLogger (Logger: Log.TLogger);
 var
@@ -60,23 +80,28 @@ end; // .PROCEDURE InstallLogger
 
 procedure LoadSettings;
 begin
-  DebugOpt  :=  GetOptValue('Debug') = '1';
-  
+  DebugOpt           := GetOptBoolValue('Debug');
+  DebugEverythingOpt := GetOptBoolValue('Debug.Everything');
+
   if DebugOpt then begin
-    if GetOptValue('Debug.Destination') = 'File' then begin
-      InstallLogger(EraLog.TFileLogger.Create(GetOptValue('Debug.File')));
-    end // .IF
-    else begin     
+    if GetOptValue('Debug.LogDestination') = 'File' then begin
+      InstallLogger(EraLog.TFileLogger.Create(DEBUG_DIR + '\' + LOG_FILE_NAME));
+    end else begin     
       InstallLogger(EraLog.TConsoleLogger.Create('Era Log'));
-    end; // .ELSE
-  end // .IF
+    end; // .else
+
+    MapExt.AbortOnError := GetOptBoolValue('Debug.AbortOnError');
+  end // .if
   else begin
     InstallLogger(EraLog.TMemoryLogger.Create);
-  end; // .ELSE
+  end; // .else
   
   Log.Write('Core', 'CheckVersion', 'Result: ' + ERA_VERSION);
+
+  VFS.DebugOpt := GetDebugOpt('Debug.LogVirtualFileSystem');
 end; // .PROCEDURE LoadSettings
 
 begin
   LoadSettings;
+  VFS.Init;
 end.

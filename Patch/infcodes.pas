@@ -16,7 +16,7 @@ uses
   {$IFDEF DEBUG}
   strutils,
   {$ENDIF}
-  zutil, ZLibSpec;
+  SysUtils, zutil, ZLibSpec;
 
 function inflate_codes_new (bl : uInt;
                             bd : uInt;

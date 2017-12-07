@@ -45,7 +45,7 @@ uses
   {$ifdef DEBUG}
   strutils,
   {$ENDIF}
-  zutil, ZLibSpec;
+  SysUtils, zutil, ZLibSpec;
 
 { ===========================================================================
   Internal compression state. }

@@ -19,7 +19,7 @@ uses
   {$ifdef DEBUG}
   strutils,
   {$ENDIF}
-  zutil, ZLibSpec;
+  SysUtils, zutil, ZLibSpec;
 
 function inflate_fast( bl : uInt;
                        bd : uInt;
