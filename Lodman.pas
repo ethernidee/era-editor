@@ -385,7 +385,7 @@ begin
     end; // .else
   end; // .if
   
-  result  :=  Core.EXEC_DEF_CODE;
+  result := Core.EXEC_DEF_CODE;
 end; // .function Hook_ReadTxt
 
 function Hook_AfterLoadLods (Context: Core.PHookContext): longbool; stdcall;

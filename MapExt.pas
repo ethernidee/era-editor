@@ -6,11 +6,13 @@ AUTHOR:       Alexander Shostak (aka Berserker aka EtherniDee aka BerSoft)
 
 (***)  interface  (***)
 uses
-  Windows, Math, SysUtils, Utils, DataLib, Files, FilesEx, StrLib, Core, PatchApi, DlgMes,
-  VFS, BinPatching;
+  Windows, Math, SysUtils,
+  Utils, DataLib, Files, FilesEx, StrLib, Core, PatchApi,
+  VfsImport,
+  DlgMes, BinPatching;
 
 const
-  ERA_EDITOR_VERSION        = '2.6.0';
+  ERA_EDITOR_VERSION        = '2.7.7';
   DEBUG_DIR                 = 'Debug\EraEditor';
   DEBUG_MAPS_DIR            = 'DebugMaps';
   DEBUG_EVENT_LIST_PATH     = DEBUG_DIR + '\event list.txt';
@@ -230,7 +232,8 @@ end; // .procedure DumpPatchList
 
 procedure DumpModList;
 begin
-  Files.WriteFileContents(VFS.ModList.ToText(#13#10), DEBUG_MOD_LIST_PATH);
+  //Files.WriteFileContents(VFS.ModList.ToText(#13#10), DEBUG_MOD_LIST_PATH);
+  // FIXME REWRITEME
 end;
 
 procedure OnGenerateDebugInfo (Event: PEvent); stdcall;
@@ -253,9 +256,16 @@ var
 begin
   hMe := hDll;
   Windows.DisableThreadLibraryCalls(hMe);
+  //Windows.SetProcessAffinityMask(Windows.GetCurrentProcess, 1);// FIXME DLETEME
+  SysUtils.SetCurrentDir('D:\Heroes 3'); // FIXME
   Files.ForcePath(DEBUG_DIR);
   FireEvent('OnLoadSettings', nil, 0);
-  VFS.Init;
+  VfsImport.MapModsFromList('D:\Heroes 3', 'D:\Heroes 3\Mods', 'D:\Heroes 3\Mods\list.txt');
+  VfsImport.RunVfs(VfsImport.SORT_FIFO);
+  VfsImport.RunWatcher('D:\Heroes 3\Mods', 250);
+  //VFS.Init(NewStrList(false, false)); // FIXME
+  //SysUtils.SetCurrentDir('D:\'); // FIXME
+  //SysUtils.SetCurrentDir('D:\Heroes 3'); // FIXME
   
   (* Restore default editor constant overwritten by "eramap.dll" *)
   Buffer := 'GetSpreadsheet';

@@ -6,25 +6,20 @@ AUTHOR:       Alexander Shostak (aka Berserker aka EtherniDee aka BerSoft)
 
 (***)  interface  (***)
 uses
-  SysUtils,
-  Utils, Log, Ini,
-  VFS, EraLog, MapExt;
-
+  SysUtils, Math, Utils, Log, Ini, Core,
+  VfsImport, MapExt, EraLog;
+  
 const
   GAME_SETTINGS_FILE = 'heroes3.ini';
-  
-  
   LOG_FILE_NAME      = 'log.txt';
+
+implementation
 
 var
   DebugOpt:           boolean;
   DebugEverythingOpt: boolean;
 
-
-(***) implementation (***)
-
-
-function GetOptValue (const OptionName: string): string;
+function GetOptValue (const OptionName: string; const DefVal: string = ''): string;
 const
   ERA_SECTION               = 'Era';
   DEFAULT_ERA_SETTINGS_FILE = 'default era settings.ini';
@@ -35,31 +30,35 @@ begin
   then begin
     result := SysUtils.Trim(result);
   end else begin
-    result := '';
-  end; // .else
+    result := DefVal;
+  end;
 end; // .function GetOptValue
 
-function GetOptBoolValue (const OptionName: string): boolean;
-begin
-  result := GetOptValue(OptionName) = '1';
-end; // .function GetOptBoolValue
-
-function GetDebugOpt (const OptionName: string): boolean;
-begin
-  result := DebugOpt and (DebugEverythingOpt or GetOptBoolValue(OptionName)); 
-end; // .function GetDebugOpt
-
-function GetOptIntValue (const OptionName: string): integer;
+function GetOptBoolValue (const OptionName: string; DefValue: boolean = false): boolean;
 var
   OptVal: string;
 
 begin
-  OptVal := GetOptValue(OptionName);
+  OptVal := GetOptValue(OptionName, IfThen(DefValue, '1', '0'));
+  result := OptVal = '1';
+end; // .function GetOptBoolValue
+
+function GetDebugOpt (const OptionName: string; DefValue: boolean = false): boolean;
+begin
+  result := DebugOpt and (DebugEverythingOpt or GetOptBoolValue(OptionName, DefValue)); 
+end; // .function GetDebugOpt
+
+function GetOptIntValue (const OptionName: string; DefValue: integer = 0): integer;
+var
+  OptVal: string;
+
+begin
+  OptVal := GetOptValue(OptionName, IntToStr(DefValue));
 
   if not TryStrToInt(OptVal, result) then begin
     Log.Write('Settings', 'GetOptIntValue', 'Error. Invalid option "' + OptionName
-                                            + '" value: "' + OptVal + '". Assumed 0');
-    result := 0;
+                                            + '" value: "' + OptVal + '". Assumed ' + IntToStr(DefValue));
+    result := DefValue;
   end; // .if
 end; // .function GetOptIntValue
 
@@ -73,35 +72,33 @@ begin
 
   while Log.Read(LogRec) do begin
     Logger.Write(LogRec.EventSource, LogRec.Operation, LogRec.Description);
-  end; // .WHILE
+  end; // .while
   
   Log.InstallLogger(Logger, Log.FREE_OLD_LOGGER);
-end; // .PROCEDURE InstallLogger
+end; // .procedure InstallLogger
 
-procedure LoadSettings;
+procedure OnLoadSettings (Event: MapExt.PEvent); stdcall;
 begin
-  DebugOpt           := GetOptBoolValue('Debug');
-  DebugEverythingOpt := GetOptBoolValue('Debug.Everything');
+  DebugOpt           := GetOptBoolValue('Debug', true);
+  DebugEverythingOpt := GetOptBoolValue('Debug.Everything', false);
 
   if DebugOpt then begin
-    if GetOptValue('Debug.LogDestination') = 'File' then begin
-      InstallLogger(EraLog.TFileLogger.Create(DEBUG_DIR + '\' + LOG_FILE_NAME));
+    if GetOptValue('Debug.LogDestination', 'File') = 'File' then begin
+      InstallLogger(EraLog.TFileLogger.Create(MapExt.DEBUG_DIR + '\' + LOG_FILE_NAME));
     end else begin     
       InstallLogger(EraLog.TConsoleLogger.Create('Era Log'));
-    end; // .else
-
-    MapExt.AbortOnError := GetOptBoolValue('Debug.AbortOnError');
-  end // .if
-  else begin
+    end;
+  end else begin
     InstallLogger(EraLog.TMemoryLogger.Create);
   end; // .else
-  
-  Log.Write('Core', 'CheckVersion', 'Result: ' + ERA_VERSION);
 
-  VFS.DebugOpt := GetDebugOpt('Debug.LogVirtualFileSystem');
-end; // .PROCEDURE LoadSettings
+  Log.Write('Core', 'CheckVersion', 'Result: ' + MapExt.ERA_EDITOR_VERSION);
+
+  Core.AbortOnError := GetDebugOpt('Debug.AbortOnError',         true);
+  //VFS.DebugOpt      := GetDebugOpt('Debug.LogVirtualFileSystem', false);
+  // FIXME Rewrite me
+end; // .procedure OnLoadSettings
 
 begin
-  LoadSettings;
-  VFS.Init;
+  MapExt.RegisterHandler(OnLoadSettings, 'OnLoadSettings');
 end.
