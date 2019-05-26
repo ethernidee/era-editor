@@ -28,7 +28,7 @@ begin
   {!} Core.ModuleContext.Lock;
   Core.ModuleContext.UpdateModuleList;
 
-  with FilesEx.WriteFormattedOutput(DEBUG_WINPE_MODULE_LIST_PATH) do begin
+  with FilesEx.WriteFormattedOutput(MapExt.GameDir + '\' + DEBUG_WINPE_MODULE_LIST_PATH) do begin
     Line('> Win32 executable modules');
     EmptyLine;
 
@@ -56,7 +56,7 @@ begin
   {!} Core.ModuleContext.Lock;
   Core.ModuleContext.UpdateModuleList;
 
-  with FilesEx.WriteFormattedOutput(DEBUG_EXCEPTION_CONTEXT_PATH) do begin
+  with FilesEx.WriteFormattedOutput(MapExt.GameDir + '\' + DEBUG_EXCEPTION_CONTEXT_PATH) do begin
     case ExcRec.ExceptionCode of
       $C0000005: begin
         if ExcRec.ExceptionInformation[0] <> 0 then begin

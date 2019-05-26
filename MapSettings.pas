@@ -25,8 +25,8 @@ const
   DEFAULT_ERA_SETTINGS_FILE = 'default era settings.ini';
 
 begin
-  if Ini.ReadStrFromIni(OptionName, ERA_SECTION, GAME_SETTINGS_FILE, result) or
-     Ini.ReadStrFromIni(OptionName, ERA_SECTION, DEFAULT_ERA_SETTINGS_FILE, result)
+  if Ini.ReadStrFromIni(OptionName, ERA_SECTION, MapExt.GameDir + '\' + GAME_SETTINGS_FILE, result) or
+     Ini.ReadStrFromIni(OptionName, ERA_SECTION, MapExt.GameDir + '\' + DEFAULT_ERA_SETTINGS_FILE, result)
   then begin
     result := SysUtils.Trim(result);
   end else begin
@@ -77,6 +77,11 @@ begin
   Log.InstallLogger(Logger, Log.FREE_OLD_LOGGER);
 end; // .procedure InstallLogger
 
+procedure VfsLogger (Operation, Message: pchar); stdcall;
+begin
+  Log.Write('VFS', Operation, Message);
+end;
+
 procedure OnLoadSettings (Event: MapExt.PEvent); stdcall;
 begin
   DebugOpt           := GetOptBoolValue('Debug', true);
@@ -95,8 +100,10 @@ begin
   Log.Write('Core', 'CheckVersion', 'Result: ' + MapExt.ERA_EDITOR_VERSION);
 
   Core.AbortOnError := GetDebugOpt('Debug.AbortOnError',         true);
-  //VFS.DebugOpt      := GetDebugOpt('Debug.LogVirtualFileSystem', false);
-  // FIXME Rewrite me
+
+  if GetDebugOpt('Debug.LogVirtualFileSystem', false) then begin
+    VfsImport.SetLoggingProc(@VfsLogger);
+  end;
 end; // .procedure OnLoadSettings
 
 begin

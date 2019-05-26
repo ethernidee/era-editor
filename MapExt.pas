@@ -7,12 +7,13 @@ AUTHOR:       Alexander Shostak (aka Berserker aka EtherniDee aka BerSoft)
 (***)  interface  (***)
 uses
   Windows, Math, SysUtils,
-  Utils, DataLib, Files, FilesEx, StrLib, Core, PatchApi,
+  Utils, DataLib, Files, FilesEx, StrLib,
+  Core, PatchApi, WinUtils, Log, DlgMes,
   VfsImport,
-  DlgMes, BinPatching;
+  BinPatching;
 
 const
-  ERA_EDITOR_VERSION        = '2.7.7';
+  ERA_EDITOR_VERSION        = '2.8.0';
   DEBUG_DIR                 = 'Debug\EraEditor';
   DEBUG_MAPS_DIR            = 'DebugMaps';
   DEBUG_EVENT_LIST_PATH     = DEBUG_DIR + '\event list.txt';
@@ -26,6 +27,8 @@ const
 
 
 type
+  EAssertFailure = class (Exception) end;
+
   PEvent  = ^TEvent;
   TEvent  = packed record
       Name:     string;
@@ -175,7 +178,7 @@ begin
   // * * * * * //
   {!} Core.ModuleContext.Lock;
 
-  with FilesEx.WriteFormattedOutput(DEBUG_EVENT_LIST_PATH) do begin
+  with FilesEx.WriteFormattedOutput(GameDir + '\' + DEBUG_EVENT_LIST_PATH) do begin
     Line('> Format: [Event name] ([Number of handlers], [Fired N times])');
     EmptyLine;
 
@@ -220,7 +223,7 @@ var
 begin
   BinPatching.PatchList.Sort;
 
-  with FilesEx.WriteFormattedOutput(DEBUG_PATCH_LIST_PATH) do begin
+  with FilesEx.WriteFormattedOutput(GameDir + '\' + DEBUG_PATCH_LIST_PATH) do begin
     Line('> Format: [Patch name] (Patch size)');
     EmptyLine;
 
@@ -231,9 +234,14 @@ begin
 end; // .procedure DumpPatchList
 
 procedure DumpModList;
+var
+{O} MappingsReport: pchar;
+
 begin
-  //Files.WriteFileContents(VFS.ModList.ToText(#13#10), DEBUG_MOD_LIST_PATH);
-  // FIXME REWRITEME
+  MappingsReport := VfsImport.GetMappingsReportA;
+  Files.WriteFileContents(MappingsReport, DEBUG_MOD_LIST_PATH);
+  // * * * * * //
+  VfsImport.MemFree(MappingsReport);
 end;
 
 procedure OnGenerateDebugInfo (Event: PEvent); stdcall;
@@ -241,7 +249,7 @@ begin
   DumpModList;
   DumpEventList;
   DumpPatchList;
-  PatchApi.GetPatcher().SaveDump(DEBUG_X86_PATCH_LIST_PATH);
+  PatchApi.GetPatcher().SaveDump(pchar(GameDir + '\' + DEBUG_X86_PATCH_LIST_PATH));
 end;
 
 procedure Init (hDll: integer);
@@ -256,16 +264,13 @@ var
 begin
   hMe := hDll;
   Windows.DisableThreadLibraryCalls(hMe);
-  //Windows.SetProcessAffinityMask(Windows.GetCurrentProcess, 1);// FIXME DLETEME
-  SysUtils.SetCurrentDir('D:\Heroes 3'); // FIXME
-  Files.ForcePath(DEBUG_DIR);
+  Files.ForcePath(GameDir + '\' + DEBUG_DIR);
   FireEvent('OnLoadSettings', nil, 0);
-  VfsImport.MapModsFromList('D:\Heroes 3', 'D:\Heroes 3\Mods', 'D:\Heroes 3\Mods\list.txt');
+  
+  // Run VFS
+  VfsImport.MapModsFromListA(pchar(GameDir), pchar(GameDir + '\Mods'), pchar(GameDir + '\Mods\list.txt'));
   VfsImport.RunVfs(VfsImport.SORT_FIFO);
-  VfsImport.RunWatcher('D:\Heroes 3\Mods', 250);
-  //VFS.Init(NewStrList(false, false)); // FIXME
-  //SysUtils.SetCurrentDir('D:\'); // FIXME
-  //SysUtils.SetCurrentDir('D:\Heroes 3'); // FIXME
+  VfsImport.RunWatcherA(pchar(GameDir + '\Mods'), 250);
   
   (* Restore default editor constant overwritten by "eramap.dll" *)
   Buffer := 'GetSpreadsheet';
@@ -308,9 +313,38 @@ asm
   // RET
 end; // .procedure AsmInit
 
+procedure AssertHandler (const Mes, FileName: string; LineNumber: integer; Address: pointer);
+var
+  CrashMes: string;
+
 begin
-  GameDir     := SysUtils.GetCurrentDir;
-  PluginsList := DataLib.NewStrList(not Utils.OWNS_ITEMS, DataLib.CASE_INSENSITIVE);
-  Events      := DataLib.NewDict(Utils.OWNS_ITEMS, DataLib.CASE_INSENSITIVE);
-  Core.SetDebugMapsDir(DEBUG_MAPS_DIR);
+  CrashMes := StrLib.BuildStr
+  (
+    'Assert violation in file "~FileName~" on line ~Line~.'#13#10'Error at address: $~Address~.'#13#10'Message: "~Message~"',
+    [
+      'FileName', FileName,
+      'Line',     SysUtils.IntToStr(LineNumber),
+      'Address',  SysUtils.Format('%x', [integer(Address)]),
+      'Message',  Mes
+    ],
+    '~'
+  );
+  
+  Log.Write('Core', 'AssertHandler', CrashMes);
+  DlgMes.MsgError(CrashMes);
+
+  raise EAssertFailure.Create(CrashMes) at Address;
+end; // .procedure AssertHandler
+
+begin
+  AssertErrorProc := AssertHandler;
+  PluginsList     := DataLib.NewStrList(not Utils.OWNS_ITEMS, DataLib.CASE_INSENSITIVE);
+  Events          := DataLib.NewDict(Utils.OWNS_ITEMS, DataLib.CASE_INSENSITIVE);
+  
+  // Find out path to game directory and force it as current directory
+  GameDir     := StrLib.ExtractDirPathW(WinUtils.GetExePath());
+  {!} Assert(GameDir <> '', 'Failed to obtain game directory path');
+  SysUtils.SetCurrentDir(GameDir);
+
+  Core.SetDebugMapsDir(GameDir + '\' + DEBUG_MAPS_DIR);
 end.
