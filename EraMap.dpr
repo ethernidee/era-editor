@@ -4,6 +4,8 @@ DESCRIPTION:  WoG Editor, adapted to Era
 AUTHOR:       Alexander Shostak (aka Berserker aka EtherniDee aka BerSoft)
 }
 
+{$R *.RES}
+
 uses
   VfsImport   in '..\Vfs\VfsImport.pas',
   BinPatching in '..\Era\BinPatching.pas',
