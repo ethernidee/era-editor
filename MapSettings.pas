@@ -86,6 +86,11 @@ procedure OnLoadSettings (Event: MapExt.PEvent); stdcall;
 begin
   DebugOpt           := GetOptBoolValue('Debug', true);
   DebugEverythingOpt := GetOptBoolValue('Debug.Everything', false);
+  MapExt.DumpVfsOpt  := GetDebugOpt(    'Debug.DumpVirtualFileSystem', false);
+
+  if GetDebugOpt('Debug.LogVirtualFileSystem', false) then begin
+    VfsImport.SetLoggingProc(@VfsLogger);
+  end;
 
   if DebugOpt then begin
     if GetOptValue('Debug.LogDestination', 'File') = 'File' then begin
@@ -99,11 +104,7 @@ begin
 
   Log.Write('Core', 'CheckVersion', 'Result: ' + MapExt.ERA_EDITOR_VERSION);
 
-  Core.AbortOnError := GetDebugOpt('Debug.AbortOnError',         true);
-
-  if GetDebugOpt('Debug.LogVirtualFileSystem', false) then begin
-    VfsImport.SetLoggingProc(@VfsLogger);
-  end;
+  Core.AbortOnError := GetDebugOpt('Debug.AbortOnError', true);
 end; // .procedure OnLoadSettings
 
 begin

@@ -8,12 +8,15 @@ AUTHOR:       Alexander Shostak (aka Berserker aka EtherniDee aka BerSoft)
 uses
   Windows, Math, SysUtils,
   Utils, DataLib, Files, FilesEx, StrLib,
-  Core, PatchApi, WinUtils, Log, DlgMes,
+  Core, PatchApi, WinUtils, Log, DlgMes, CmdApp,
   VfsImport,
   BinPatching;
 
 const
-  ERA_EDITOR_VERSION        = '2.8.0';
+  (* Command line arguments *)
+  CMDLINE_ARG_MODLIST = 'modlist';
+
+  ERA_EDITOR_VERSION        = '2.9.10';
   DEBUG_DIR                 = 'Debug\EraEditor';
   DEBUG_MAPS_DIR            = 'DebugMaps';
   DEBUG_EVENT_LIST_PATH     = DEBUG_DIR + '\event list.txt';
@@ -21,9 +24,11 @@ const
   DEBUG_MOD_LIST_PATH       = DEBUG_DIR + '\mod list.txt';
   DEBUG_X86_PATCH_LIST_PATH = DEBUG_DIR + '\x86 patches.txt';
 
-  (* Pathes *)
-  PLUGINS_PATH = 'EraEditor';
-  PATCHES_PATH = 'EraEditor';
+  (* Paths *)
+  MODS_DIR              = 'Mods';
+  DEFAULT_MOD_LIST_FILE = MODS_DIR + '\list.txt';
+  PLUGINS_PATH          = 'EraEditor';
+  PATCHES_PATH          = 'EraEditor';
 
 
 type
@@ -60,6 +65,8 @@ var
 {O} Events:      {O} DataLib.TDict {OF TEventInfo};
     hMe:         integer;
     GameDir:     string;
+    ModsDir:     string;
+    DumpVfsOpt:  boolean;
 
 
 procedure AsmInit; assembler;
@@ -144,27 +151,21 @@ var
   DllHandle: THandle;
 
 begin
-  with Files.Locate(PLUGINS_PATH + '\*.dll', Files.ONLY_FILES) do begin
+  with Files.Locate(GameDir + '\' + PLUGINS_PATH + '\*.dll', Files.ONLY_FILES) do begin
     while FindNext do begin
-      if
-        not FoundRec.IsDir                            and
-        (SysUtils.ExtractFileExt(FoundName) = '.dll') and
-        (FoundRec.Rec.Size > 0)
-      then begin
-        
+      if not FoundRec.IsDir and (FoundRec.Rec.Size > 0) then begin
         DllHandle := Windows.LoadLibrary(pchar(FoundPath));
         {!} Assert(DllHandle <> 0, 'Failed to load plugin DLL at "' + FoundPath + '"');
-        Windows.DisableThreadLibraryCalls(DllHandle);
         PluginsList.AddObj(FoundPath, Ptr(DllHandle));
-      end; // .if
-    end; // .while
-  end; // .with
+      end;
+    end;
+  end;
 end; // .procedure LoadPlugins
 
 procedure GenerateDebugInfo;
 begin
   FireEvent('OnGenerateDebugInfo', nil, 0);
-end; // .procedure GenerateDebugInfo
+end;
 
 procedure DumpEventList;
 var
@@ -239,7 +240,7 @@ var
 
 begin
   MappingsReport := VfsImport.GetMappingsReportA;
-  Files.WriteFileContents(MappingsReport, DEBUG_MOD_LIST_PATH);
+  Files.WriteFileContents(MappingsReport, GameDir + '\' + DEBUG_MOD_LIST_PATH);
   // * * * * * //
   VfsImport.MemFree(MappingsReport);
 end;
@@ -258,8 +259,9 @@ const
   RDATA_SECTION_SIZE = $4B000;
 
 var
-  Buffer:        string;
-  OldProtection: integer;
+  Buffer:          string;
+  OldProtection:   integer;
+  ModListFilePath: string;
 
 begin
   hMe := hDll;
@@ -268,7 +270,19 @@ begin
   FireEvent('OnLoadSettings', nil, 0);
   
   // Run VFS
-  VfsImport.MapModsFromListA(pchar(GameDir), pchar(GameDir + '\Mods'), pchar(GameDir + '\Mods\list.txt'));
+  ModListFilePath := CmdApp.GetArg(CMDLINE_ARG_MODLIST);
+
+  if ModListFilePath = '' then begin
+    ModListFilePath := GameDir + '\' + DEFAULT_MOD_LIST_FILE;
+  end;
+  
+  VfsImport.MapModsFromListA(pchar(GameDir), pchar(ModsDir), pchar(ModListFilePath));
+  Log.Write('Core', 'ReportModList', #13#10 + VfsImport.GetMappingsReportA);
+
+  if DumpVfsOpt then begin
+    Log.Write('Core', 'DumpVFS', #13#10 + VfsImport.GetDetailedMappingsReportA);
+  end;
+  
   VfsImport.RunVfs(VfsImport.SORT_FIFO);
   VfsImport.RunWatcherA(pchar(GameDir + '\Mods'), 250);
   
@@ -342,9 +356,10 @@ begin
   Events          := DataLib.NewDict(Utils.OWNS_ITEMS, DataLib.CASE_INSENSITIVE);
   
   // Find out path to game directory and force it as current directory
-  GameDir     := StrLib.ExtractDirPathW(WinUtils.GetExePath());
+  GameDir := StrLib.ExtractDirPathW(WinUtils.GetExePath());
   {!} Assert(GameDir <> '', 'Failed to obtain game directory path');
   SysUtils.SetCurrentDir(GameDir);
+  ModsDir := GameDir + '\' + MODS_DIR;
 
   Core.SetDebugMapsDir(GameDir + '\' + DEBUG_MAPS_DIR);
 end.
