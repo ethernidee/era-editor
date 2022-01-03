@@ -23,21 +23,21 @@ type
   TLod  = packed record
     Dummy:  array [0..399] of byte;
   end;
-  
+
   PLodTable = ^TLodTable;
   TLodTable = array [0..99] of TLod;
-  
+
   TGameVersion  = 0..3;
   TLodType      = (LOD_SPRITE = 1, LOD_BITMAP = 2, LOD_WAV = 3);
-  
+
   PIndexes  = ^TIndexes;
   TIndexes  = array [0..MAX_NUM_LODS - 1] of integer;
-  
+
   TLodIndexes = packed record
     NumLods:  integer;
     Indexes:  ^TIndexes;
   end;
-  
+
   TLodTypes = packed record
     Table:    array [LOD_SPRITE..LOD_WAV, TGameVersion] of TLodIndexes;
     Indexes:  array [LOD_SPRITE..LOD_WAV, TGameVersion] of TIndexes;
@@ -63,7 +63,7 @@ begin
   LodTypes.Table[LOD_SPRITE, 2].Indexes :=  @LodTypes.Indexes[LOD_SPRITE, 2];
   LodTypes.Table[LOD_SPRITE, 3].NumLods :=  3;
   LodTypes.Table[LOD_SPRITE, 3].Indexes :=  @LodTypes.Indexes[LOD_SPRITE, 3];
-  
+
   (* LOD_BITMAP *)
   LodTypes.Table[LOD_BITMAP, 0].NumLods :=  3;
   LodTypes.Table[LOD_BITMAP, 0].Indexes :=  @LodTypes.Indexes[LOD_BITMAP, 0];
@@ -73,7 +73,7 @@ begin
   LodTypes.Table[LOD_BITMAP, 2].Indexes :=  @LodTypes.Indexes[LOD_BITMAP, 2];
   LodTypes.Table[LOD_BITMAP, 3].NumLods :=  1;
   LodTypes.Table[LOD_BITMAP, 3].Indexes :=  @LodTypes.Indexes[LOD_BITMAP, 3];
-  
+
   (* LOD_WAV *)
   LodTypes.Table[LOD_WAV, 0].NumLods :=  2;
   LodTypes.Table[LOD_WAV, 0].Indexes :=  @LodTypes.Indexes[LOD_WAV, 0];
@@ -83,44 +83,44 @@ begin
   LodTypes.Table[LOD_WAV, 2].Indexes :=  @LodTypes.Indexes[LOD_WAV, 2];
   LodTypes.Table[LOD_WAV, 3].NumLods :=  2;
   LodTypes.Table[LOD_WAV, 3].Indexes :=  @LodTypes.Indexes[LOD_WAV, 3];
-  
+
   (* LOD_SPRITE *)
   LodTypes.Indexes[LOD_SPRITE, 0][0]  :=  5;
   LodTypes.Indexes[LOD_SPRITE, 0][1]  :=  1;
-  
+
   LodTypes.Indexes[LOD_SPRITE, 1][0]  :=  4;
   LodTypes.Indexes[LOD_SPRITE, 1][1]  :=  0;
-  
+
   LodTypes.Indexes[LOD_SPRITE, 2][0]  :=  1;
   LodTypes.Indexes[LOD_SPRITE, 2][1]  :=  0;
-  
+
   LodTypes.Indexes[LOD_SPRITE, 3][0]  :=  7;
   LodTypes.Indexes[LOD_SPRITE, 3][1]  :=  3;
   LodTypes.Indexes[LOD_SPRITE, 3][2]  :=  1;
-  
+
   (* LOD_BITMAP *)
   LodTypes.Indexes[LOD_BITMAP, 0][0]  :=  6;
   LodTypes.Indexes[LOD_BITMAP, 0][1]  :=  2;
   LodTypes.Indexes[LOD_BITMAP, 0][2]  :=  0;
-  
+
   LodTypes.Indexes[LOD_BITMAP, 1][0]  :=  2;
   LodTypes.Indexes[LOD_BITMAP, 1][1]  :=  1;
   LodTypes.Indexes[LOD_BITMAP, 1][2]  :=  0;
-  
+
   LodTypes.Indexes[LOD_BITMAP, 2][0]  :=  1;
-  
+
   LodTypes.Indexes[LOD_BITMAP, 3][0]  :=  0;
-  
+
   (* LOD_WAV *)
   LodTypes.Indexes[LOD_WAV, 0][0]  :=  1;
   LodTypes.Indexes[LOD_WAV, 0][1]  :=  0;
-  
+
   LodTypes.Indexes[LOD_WAV, 1][0]  :=  1;
   LodTypes.Indexes[LOD_WAV, 1][1]  :=  3;
-  
+
   LodTypes.Indexes[LOD_WAV, 2][0]  :=  0;
   LodTypes.Indexes[LOD_WAV, 2][1]  :=  2;
-  
+
   LodTypes.Indexes[LOD_WAV, 3][0]  :=  1;
   LodTypes.Indexes[LOD_WAV, 3][1]  :=  0;
 end; // .procedure RegisterDefaultLodTypes
@@ -142,18 +142,18 @@ var
     LodType:      TLodType;
     GameVersion:  TGameVersion;
     i:            integer;
-   
+
 begin
   for LodType := LOD_SPRITE to LOD_WAV do begin
     for GameVersion := Low(TGameVersion) to High(TGameVersion) do begin
       Indexes := @LodTypes.Indexes[LodType, GameVersion];
-      
+
       for i := LodTypes.Table[LodType, GameVersion].NumLods - 1 downto 0 do begin
         Indexes[i + 1] := Indexes[i];
       end; // .for
-      
+
       Indexes[0] := LodInd;
-      
+
       Inc(LodTypes.Table[LodType, GameVersion].NumLods);
     end; // .for
   end; // .for
@@ -169,7 +169,7 @@ var
 begin
   RegisterDefaultLodTypes;
   NumLods := NUM_OBLIG_LODS;
-  
+
   with Files.Locate('Data\*.pac', Files.ONLY_FILES) do begin
     while FindNext do begin
       if FoundRec.Rec.Size > MIN_LOD_SIZE then begin
@@ -177,7 +177,7 @@ begin
       end;
     end;
   end;
-  
+
   for i := LodList.Count - 1 downto 0 do begin
     LoadLod(LodList[i], @LodTable[NumLods]);
     AddLodToList(NumLods);
@@ -204,11 +204,11 @@ begin
   Core.p.WriteDword(Ptr($4DACE6 + 15 * 5), integer(@LodTable[5]));
   Core.p.WriteDword(Ptr($4DACE6 + 15 * 6), integer(@LodTable[6]));
   Core.p.WriteDword(Ptr($4DACE6 + 15 * 7), integer(@LodTable[7]));
-  
+
   (* Fix refs to LodTable[0] *)
   Core.p.WriteDword(Ptr($4DAD9D), integer(@LodTable[0]));
   Core.p.WriteDword(Ptr($4DB1A9), integer(@LodTable[0]));
-  
+
   (* Fix refs to LodTable[0].F4 *)
   Core.p.WriteDword(Ptr($4DB1AF), integer(@LodTable[0]) + 4);
   Core.p.WriteDword(Ptr($4DB275), integer(@LodTable[0]) + 4);
@@ -217,22 +217,22 @@ begin
   Core.p.WriteDword(Ptr($4DB318), integer(@LodTable[0]) + 4);
   Core.p.WriteDword(Ptr($4DC029), integer(@LodTable[0]) + 4);
   Core.p.WriteDword(Ptr($4DC087), integer(@LodTable[0]) + 4);
-  
+
   (* Fix refs to LodTypes.Table *)
   Core.p.WriteDword(Ptr($4DB25D), integer(@LodTypes.Table));
   Core.p.WriteDword(Ptr($4DB264), integer(@LodTypes.Table));
   Core.p.WriteDword(Ptr($4DB2E4), integer(@LodTypes.Table));
   Core.p.WriteDword(Ptr($4DBF0F), integer(@LodTypes.Table));
-  
+
   (* Fix refs to LodTypes.Table.f4 *)
   Core.p.WriteDword(Ptr($4DB256), integer(@LodTypes.Table) + 4);
-  
+
   (* Fix refs to LodTypes.Table.f8 *)
   Core.p.WriteDword(Ptr($4DB2DD), integer(@LodTypes.Table) + 8);
-  
+
   (* Fix refs to LodTypes.Table.f12 *)
   Core.p.WriteDword(Ptr($4DB2D6), integer(@LodTypes.Table) + 12);
-  
+
   Core.Hook(@Hook_SetLodTypes, Core.HOOKTYPE_JUMP, 5, Ptr($4DAED0));
 end; // .procedure ExtendLods
 
@@ -247,10 +247,10 @@ begin
   Files.Scan(MapObjMan.ZEOBJTS_DIR + '\*.txt', Files.faNotDirectory, '.txt', MapObjMan.LoadZeobjt);
 end; // .procedure LoadZeobjtsExtensions
 
-function FileIsInLod (const FileName: string; RawLod: pointer): boolean; 
+function FileIsInLod (const FileName: string; RawLod: pointer): boolean;
 begin
-  result  :=  false;
-  
+  result := false;
+
   if FileName <> '' then begin
     asm
       MOV ECX, RawLod
@@ -261,42 +261,42 @@ begin
       MOV result, AL
     end; // .asm
   end; // .if
-end; // .function FileIsInLod  
+end; // .function FileIsInLod
 
 function FindFileLod (const FileName: string; out LodPath: string): boolean;
 const
   MAX_LOD_COUNT = 100;
-  
+
 type
-  PLod  = ^TLod;
-  TLod  = packed record
-    Dummy:  array [0..399] of byte;
-  end; // .record TLod
+  PLod = ^TLod;
+  TLod = packed record
+    Dummy: array [0..399] of byte;
+  end;
 
 var
-  Lod:  PLod;
-  i:    integer;
-  
+  Lod: PLod;
+  i:   integer;
+
 begin
-  Lod :=  Ptr(integer(PPOINTER($4DACE6)^) + sizeof(TLod) * (MAX_LOD_COUNT - 1));
+  Lod := Ptr(integer(ppointer($4DACE6)^) + sizeof(TLod) * (MAX_LOD_COUNT - 1));
   // * * * * * //
-  result  :=  false;
-  i       :=  MAX_LOD_COUNT - 1;
-   
+  result := false;
+  i      := MAX_LOD_COUNT - 1;
+
   while not result and (i >= 0) do begin
-    if PPOINTER(Lod)^ <> nil then begin
+    if ppointer(Lod)^ <> nil then begin
       result := FileIsInLod(FileName, Lod);
-    end; // .if
-    
+    end;
+
     if not result then begin
       Dec(Lod);
       Dec(i);
-    end; // .if
-  end; // .while
+    end;
+  end;
 
   if result then begin
-    LodPath :=  pchar(integer(Lod) + 8);
-  end; // .if
+    LodPath := pchar(integer(Lod) + 8);
+  end;
 end; // .function FindFileLod
 
 
@@ -317,7 +317,7 @@ begin
     while FindNext do begin
       if Files.ReadFileContents(ConfigDir + '\' + FoundName, ConfigFileContents) then begin
         Utils.CastOrFree(TlkJson.ParseText(ConfigFileContents), TlkJsonObject, Config);
-        
+
         if Config <> nil then begin
           for i := 0 to Config.Count - 1 do begin
             ResourceName := Config.NameOf[i];
@@ -332,7 +332,7 @@ begin
                   WillBeRedirected := not FindFileLod(ResourceName, LodPath);
                 end; // .else
               end; // .if
-              
+
               if WillBeRedirected then begin
                 GlobalLodRedirs[ResourceName] := TString.Create(Config.getString(i));
               end; // .if
@@ -359,23 +359,23 @@ var
 
 begin
   (*
-  All ESP offsets were increased by 4 to compensate call to bridge 
+  All ESP offsets were increased by 4 to compensate call to bridge
   *)
-  TextName := SysUtils.AnsiLowerCase(PPCHAR(Context.ESP + $28)^);
-  
+  TextName := SysUtils.AnsiLowerCase(ppchar(Context.ESP + $28)^);
+
   if TextName = ZEOBJTS_NAME then begin
     if ZEObjList <> nil then begin
       SysUtils.FreeAndNil(ZEObjList);
     end; // .if
-    
-    SetString(TextContents, PPCHAR(Context.ESP + $14)^, Context.EDI);
-    
+
+    SetString(TextContents, ppchar(Context.ESP + $14)^, Context.EDI);
+
     if MapObjMan.LoadObjList('zeobjts.txt', TextContents, ZEObjList) then begin
       LoadZeobjtsExtensions;
       TextContents               := ObjListToStr(ZEObjList);
-      Editor.MFree(PPCHAR(Context.ESP + $14)^);
+      Editor.MFree(ppchar(Context.ESP + $14)^);
       TextBuffer                 := Editor.MAlloc(Length(TextContents));
-      PPCHAR(Context.ESP + $14)^ := TextBuffer;
+      ppchar(Context.ESP + $14)^ := TextBuffer;
       Context.EDI                := Length(TextContents);
       Context.ESI                := integer(TextBuffer);
       Utils.CopyMem(Length(TextContents), pointer(TextContents), TextBuffer);
@@ -384,7 +384,7 @@ begin
       DlgMes.MsgError('Invalid editor objects file: "' + ZEOBJTS_NAME + '"');
     end; // .else
   end; // .if
-  
+
   result := Core.EXEC_DEF_CODE;
 end; // .function Hook_ReadTxt
 

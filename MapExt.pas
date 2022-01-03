@@ -16,7 +16,7 @@ const
   (* Command line arguments *)
   CMDLINE_ARG_MODLIST = 'modlist';
 
-  ERA_EDITOR_VERSION        = '2.9.10';
+  ERA_EDITOR_VERSION        = '3.9';
   DEBUG_DIR                 = 'Debug\EraEditor';
   DEBUG_MAPS_DIR            = 'DebugMaps';
   DEBUG_EVENT_LIST_PATH     = DEBUG_DIR + '\event list.txt';
