@@ -9,7 +9,7 @@ uses
   Windows, SysUtils, Utils, Core, FilesEx, Concur, DataLib,
   MapExt, Editor;
 
-  
+
 (***) implementation (***)
 
 
@@ -87,7 +87,7 @@ begin
       $C00000FD: ExceptionText := 'Stack overflow';
       else       ExceptionText := 'Unknown exception';
     end; // .switch ExcRec.ExceptionCode
-    
+
     Line(ExceptionText + '.');
     Line(Format('EIP: %s. Code: %x', [Core.ModuleContext.AddrToStr(Ptr(Context.Eip)), ExcRec.ExceptionCode]));
     EmptyLine;
@@ -175,7 +175,7 @@ begin
   end;
 
   {!} ExceptionsCritSection.Leave;
-  
+
   result := EXCEPTION_CONTINUE_SEARCH;
 end; // .function OnUnhandledException
 
@@ -197,7 +197,7 @@ begin
 
   (* return to calling routing *)
   Context.RetAddr := Core.Ret(1);
-  
+
   result := Core.IGNORE_DEF_CODE;
 end; // .function Hook_SetUnhandledExceptionFilter
 
@@ -225,6 +225,10 @@ begin
 
   (* Fix crashing on exit is some kind of destructor *)
   Core.p.WriteCodePatch(Ptr($4DC080), ['C3']);
+
+  (* Use .msk files instead of .msg *)
+  Core.p.WriteCodePatch(Ptr($54097F), ['6B']);
+  Core.p.WriteCodePatch(Ptr($58E1EE), ['6B']);
 end;
 
 begin

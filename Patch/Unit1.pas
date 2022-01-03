@@ -150,18 +150,18 @@ type
     procedure Initialize;
     function StoreProps(edx, Obj, a1, a2, a3, a4:pptr):boolean;
   end;
-  
+
   TEra  = class
     public
       {O} Lods: {n} Classes.TStringList {OF RSLod.TRSLod};
-    
+
       constructor Create;
       class function FileIsInLod (const FileName: string; RawLod: pointer): boolean; stdcall;
       class function FindFileLod (const FileName: string; out LodPath: string): boolean; stdcall;
-      
+
       function  GetFileLod (const FileName: string): {n} RSLod.TRSLod;
   end; // .CLASS TEra
-  
+
 
 var
     Form1:  TForm1;
@@ -193,12 +193,12 @@ begin
   Self.Lods               :=  Classes.TStringList.Create;
   Self.Lods.CaseSensitive :=  FALSE;
   Self.Lods.Sorted        :=  TRUE;
-end; // .CONSTRUCTOR TEra.Create   
+end; // .CONSTRUCTOR TEra.Create
 
-class function TEra.FileIsInLod (const FileName: string; RawLod: pointer): boolean; 
+class function TEra.FileIsInLod (const FileName: string; RawLod: pointer): boolean;
 begin
   result  :=  FALSE;
-  
+
   if FileName <> '' then begin
     asm
       MOV ECX, RawLod
@@ -209,12 +209,12 @@ begin
       MOV result, AL
     end; // .ASM
   end; // .IF
-end; // .FUNCTION TEra.FileIsInLod  
+end; // .FUNCTION TEra.FileIsInLod
 
 class function TEra.FindFileLod (const FileName: string; out LodPath: string): boolean;
 const
   MAX_LOD_COUNT = 100;
-  
+
 type
   PLod  = ^TLod;
   TLod  = packed record
@@ -224,18 +224,18 @@ type
 var
   Lod:  PLod;
   i:    integer;
-  
+
 begin
   Lod :=  Ptr(integer(PPOINTER($4DACE6)^) + sizeof(TLod) * (MAX_LOD_COUNT - 1));
   // * * * * * //
   result  :=  FALSE;
   i       :=  MAX_LOD_COUNT - 1;
-   
+
   while not result and (i >= 0) do begin
     if PPOINTER(Lod)^ <> nil then begin
       result  :=  Self.FileIsInLod(FileName, Lod);
     end; // .IF
-    
+
     if not result then begin
       Dec(Lod);
       Dec(i);
@@ -254,10 +254,10 @@ var
 
 begin
   result  :=  nil;
-  
+
   if Self.FindFileLod(FileName, LodPath) then begin
     LodInd  :=  Self.Lods.IndexOf(FileName);
-    
+
     if LodInd = -1 then begin
       LodInd  :=  Self.Lods.AddObject
       (
@@ -265,7 +265,7 @@ begin
         RSLod.TRSLod.Create(LodPath)
       );
     end; // .IF
-    
+
     result  :=  RSLod.TRSLod(Self.Lods.Objects[LodInd]);
   end; // .IF
 end; // .FUNCTION TEra.GetFileLod
@@ -626,14 +626,14 @@ begin
     end;
 
     MskBuf:= nil;
-    s:=ChangeFileExt(Edit2.Text, '.msg');
-    
+    s:=ChangeFileExt(Edit2.Text, '.msk');
+
     Self.Lod :=  Era.GetFileLod(s);
-  
+
     if Self.Lod = nil then begin
       Self.Lod  :=  H3Sprite;
     end; // .IF
-    
+
     with Lod do
       if RawFiles.FindFile(s, i) then
         MskBuf:= ExtractArray(i);
@@ -657,13 +657,13 @@ begin
     end;
 
     s:=Edit2.Text;
-    
+
     Self.Lod :=  Era.GetFileLod(s);
-  
+
     if Self.Lod = nil then begin
       Self.Lod  :=  H3Sprite;
     end; // .IF
-    
+
     if not Lod.RawFiles.FindFile(s, i) then
     begin
       ErrorHint(Edit2, Format(SMiss, [s]));
@@ -739,7 +739,7 @@ begin
       Cursor:=crHandPoint;
       OnClick:=Label4Click;
     end;
-  
+
   ShowModal;
 
   DestroyHandle;
@@ -958,7 +958,7 @@ begin
 end;
 
 {
-  Based on props in map file only: 
+  Based on props in map file only:
 
       62, 34, 70:
         TypeGroup[i]:= 1;
@@ -1027,7 +1027,7 @@ end;
 function TForm1.SpecFilter(Sender:TRSLodEdit; index:int; var Str:string):boolean;
 var i,j:int; s:string;
 begin
-  s:=ChangeFileExt(Str, '.msg');
+  s:=ChangeFileExt(Str, '.msk');
   result:=false;
   with Sender.Archive do
     for i:=index+1 to Count-1 do
@@ -1206,19 +1206,19 @@ end;
 procedure TForm1.SetFullPic(s:string);
 var
   i,j:int; b:TBitmap; Buf: TRSByteArray;
-  
+
 begin
   if s=FullPicName then exit;
   FullPicName:=s;
   b:=nil;
   InvalidPic:=false;
-  
+
   Self.Lod :=  Era.GetFileLod(s);
-  
+
   if Self.Lod = nil then begin
     Self.Lod  :=  H3Sprite;
   end; // .IF
-  
+
   with Lod do
     if RawFiles.FindFile(s, j)  then
     try
@@ -1248,15 +1248,15 @@ begin
   end;
 
   FillChar(MskFile, sizeof(MskFile), 0);
-  
-  Self.Lod :=  Era.GetFileLod(ChangeFileExt(s, '.msg'));
-  
+
+  Self.Lod :=  Era.GetFileLod(ChangeFileExt(s, '.msk'));
+
   if Self.Lod = nil then begin
     Self.Lod  :=  H3Sprite;
   end; // .IF
-  
+
   with Lod do
-    if RawFiles.FindFile(ChangeFileExt(s, '.msg'), j) then
+    if RawFiles.FindFile(ChangeFileExt(s, '.msk'), j) then
     begin
       Buf:= ExtractArray(j);
       CopyMemory(@MskFile, ptr(Buf),
