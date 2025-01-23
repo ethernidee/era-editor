@@ -6,7 +6,7 @@ AUTHOR:       Alexander Shostak (aka Berserker aka EtherniDee aka BerSoft)
 
 (***)  interface  (***)
 uses
-  Windows, SysUtils, Utils, Core, FilesEx, Concur, DataLib,
+  Windows, SysUtils, Utils, Debug, FilesEx, Concur, DataLib, ApiJack, PatchApi,
   MapExt, Editor;
 
 
@@ -25,19 +25,19 @@ var
   i: integer;
 
 begin
-  {!} Core.ModuleContext.Lock;
-  Core.ModuleContext.UpdateModuleList;
+  {!} Debug.ModuleContext.Lock;
+  Debug.ModuleContext.UpdateModuleList;
 
   with FilesEx.WriteFormattedOutput(MapExt.GameDir + '\' + DEBUG_WINPE_MODULE_LIST_PATH) do begin
     Line('> Win32 executable modules');
     EmptyLine;
 
-    for i := 0 to Core.ModuleContext.ModuleList.Count - 1 do begin
-      Line(Core.ModuleContext.ModuleInfo[i].ToStr);
+    for i := 0 to Debug.ModuleContext.ModuleList.Count - 1 do begin
+      Line(Debug.ModuleContext.ModuleInfo[i].ToStr);
     end; // .for
   end; // .with
 
-  {!} Core.ModuleContext.Unlock;
+  {!} Debug.ModuleContext.Unlock;
 end; // .procedure DumpWinPeModuleList
 
 procedure DumpExceptionContext (ExcRec: Windows.PExceptionRecord; Context: Windows.PContext);
@@ -53,8 +53,8 @@ var
   i:             integer;
 
 begin
-  {!} Core.ModuleContext.Lock;
-  Core.ModuleContext.UpdateModuleList;
+  {!} Debug.ModuleContext.Lock;
+  Debug.ModuleContext.UpdateModuleList;
 
   with FilesEx.WriteFormattedOutput(MapExt.GameDir + '\' + DEBUG_EXCEPTION_CONTEXT_PATH) do begin
     case ExcRec.ExceptionCode of
@@ -89,18 +89,18 @@ begin
     end; // .switch ExcRec.ExceptionCode
 
     Line(ExceptionText + '.');
-    Line(Format('EIP: %s. Code: %x', [Core.ModuleContext.AddrToStr(Ptr(Context.Eip)), ExcRec.ExceptionCode]));
+    Line(Format('EIP: %s. Code: %x', [Debug.ModuleContext.AddrToStr(Ptr(Context.Eip)), ExcRec.ExceptionCode]));
     EmptyLine;
     Line('> Registers');
 
-    Line('EAX: ' + Core.ModuleContext.AddrToStr(Ptr(Context.Eax), Core.ANALYZE_DATA));
-    Line('ECX: ' + Core.ModuleContext.AddrToStr(Ptr(Context.Ecx), Core.ANALYZE_DATA));
-    Line('EDC: ' + Core.ModuleContext.AddrToStr(Ptr(Context.Edx), Core.ANALYZE_DATA));
-    Line('EBX: ' + Core.ModuleContext.AddrToStr(Ptr(Context.Ebx), Core.ANALYZE_DATA));
-    Line('ESP: ' + Core.ModuleContext.AddrToStr(Ptr(Context.Esp), Core.ANALYZE_DATA));
-    Line('EBP: ' + Core.ModuleContext.AddrToStr(Ptr(Context.Ebp), Core.ANALYZE_DATA));
-    Line('ESI: ' + Core.ModuleContext.AddrToStr(Ptr(Context.Esi), Core.ANALYZE_DATA));
-    Line('EDI: ' + Core.ModuleContext.AddrToStr(Ptr(Context.Edi), Core.ANALYZE_DATA));
+    Line('EAX: ' + Debug.ModuleContext.AddrToStr(Ptr(Context.Eax), Debug.ANALYZE_DATA));
+    Line('ECX: ' + Debug.ModuleContext.AddrToStr(Ptr(Context.Ecx), Debug.ANALYZE_DATA));
+    Line('EDC: ' + Debug.ModuleContext.AddrToStr(Ptr(Context.Edx), Debug.ANALYZE_DATA));
+    Line('EBX: ' + Debug.ModuleContext.AddrToStr(Ptr(Context.Ebx), Debug.ANALYZE_DATA));
+    Line('ESP: ' + Debug.ModuleContext.AddrToStr(Ptr(Context.Esp), Debug.ANALYZE_DATA));
+    Line('EBP: ' + Debug.ModuleContext.AddrToStr(Ptr(Context.Ebp), Debug.ANALYZE_DATA));
+    Line('ESI: ' + Debug.ModuleContext.AddrToStr(Ptr(Context.Esi), Debug.ANALYZE_DATA));
+    Line('EDI: ' + Debug.ModuleContext.AddrToStr(Ptr(Context.Edi), Debug.ANALYZE_DATA));
 
     EmptyLine;
     Line('> Callstack');
@@ -112,7 +112,7 @@ begin
         RetAddr := pinteger(Ebp + 4)^;
 
         if RetAddr <> 0 then begin
-          Line(Core.ModuleContext.AddrToStr(Ptr(RetAddr)));
+          Line(Debug.ModuleContext.AddrToStr(Ptr(RetAddr)));
           Ebp := pinteger(Ebp)^;
         end; // .if
       end; // .while
@@ -132,7 +132,7 @@ begin
           LineText := LineText + '*';
         end; // .if
 
-        LineText := LineText + ': ' + Core.ModuleContext.AddrToStr(ppointer(Esp)^, Core.ANALYZE_DATA);
+        LineText := LineText + ': ' + Debug.ModuleContext.AddrToStr(ppointer(Esp)^, Debug.ANALYZE_DATA);
         Inc(Esp, sizeof(integer));
         Line(LineText);
       end; // .for
@@ -141,7 +141,7 @@ begin
     end; // .try
   end; // .with
 
-  {!} Core.ModuleContext.Unlock;
+  {!} Debug.ModuleContext.Unlock;
 end; // .procedure DumpExceptionContext
 
 function TopLevelExceptionHandler (const ExceptionPtrs: TExceptionPointers): integer; stdcall;
@@ -179,32 +179,21 @@ begin
   result := EXCEPTION_CONTINUE_SEARCH;
 end; // .function OnUnhandledException
 
-function Hook_SetUnhandledExceptionFilter (Context: Core.PHookContext): longbool; stdcall;
-var
-{Un} NewHandler: pointer;
-
+function Splice_SetUnhandledExceptionFilter (OrigFunc, NewHandler: pointer): pointer; stdcall;
 begin
-  NewHandler := ppointer(Context.ESP + 8)^;
-  // * * * * * //
   if NewHandler <> nil then begin
     {!} ExceptionsCritSection.Enter;
     TopLevelExceptionHandlers.Add(NewHandler);
     {!} ExceptionsCritSection.Leave;
   end;
 
-  (* result = nil *)
-  pinteger(Context.EAX)^ := 0;
+  result := nil;
+end;
 
-  (* return to calling routing *)
-  Context.RetAddr := Core.Ret(1);
-
-  result := Core.IGNORE_DEF_CODE;
-end; // .function Hook_SetUnhandledExceptionFilter
-
-function Hook_FixGameVersion (Context: Core.PHookContext): longbool; stdcall;
+function Hook_FixGameVersion (Context: ApiJack.PHookContext): longbool; stdcall;
 begin
   Editor.GameVersion^ := AB_AND_SOD;
-  result              := Core.EXEC_DEF_CODE;
+  result              := true;
 end;
 
 procedure OnGenerateDebugInfo (Event: PEvent); stdcall;
@@ -217,18 +206,18 @@ begin
   (* Install global top-level exception filter *)
   Windows.SetErrorMode(SEM_NOGPFAULTERRORBOX);
   Windows.SetUnhandledExceptionFilter(@OnUnhandledException);
-  Core.ApiHook(@Hook_SetUnhandledExceptionFilter, Core.HOOKTYPE_BRIDGE, @Windows.SetUnhandledExceptionFilter);
+  ApiJack.StdSplice(@Windows.SetUnhandledExceptionFilter, @Splice_SetUnhandledExceptionFilter, ApiJack.CONV_STDCALL, 1);
   Windows.SetUnhandledExceptionFilter(@TopLevelExceptionHandler);
 
   (* Fix game version to allow generating random maps *)
-  Core.Hook(@Hook_FixGameVersion, Core.HOOKTYPE_BRIDGE, 5, Ptr($45C5FD));
+  ApiJack.Hook(Ptr($45C5FD), @Hook_FixGameVersion, nil, 5, ApiJack.HOOKTYPE_BRIDGE);
 
   (* Fix crashing on exit is some kind of destructor *)
-  Core.p.WriteCodePatch(Ptr($4DC080), ['C3']);
+  PatchApi.p.WriteCodePatch(Ptr($4DC080), ['C3']);
 
   (* Use .msk files instead of .msg *)
-  Core.p.WriteCodePatch(Ptr($54097F), ['6B']);
-  Core.p.WriteCodePatch(Ptr($58E1EE), ['6B']);
+  PatchApi.p.WriteCodePatch(Ptr($54097F), ['6B']);
+  PatchApi.p.WriteCodePatch(Ptr($58E1EE), ['6B']);
 end;
 
 begin

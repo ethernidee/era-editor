@@ -4,7 +4,7 @@ unit Lodman;
 
 uses
   SysUtils, Math,
-  Utils, Core, Lists, AssocArrays, DataLib, Files, Json, DlgMes,
+  Utils, Lists, Debug, AssocArrays, DataLib, Files, Json, DlgMes, PatchApi, ApiJack,
   MapExt, MapObjMan, Editor;
 
 const
@@ -196,56 +196,51 @@ end; // .procedure Hook_SetLodTypes
 procedure ExtendLods;
 begin
   (* Fix lod constructors args *)
-  Core.p.WriteDword(Ptr($4DACE6 + 15 * 0), integer(@LodTable[0]));
-  Core.p.WriteDword(Ptr($4DACE6 + 15 * 1), integer(@LodTable[1]));
-  Core.p.WriteDword(Ptr($4DACE6 + 15 * 2), integer(@LodTable[2]));
-  Core.p.WriteDword(Ptr($4DACE6 + 15 * 3), integer(@LodTable[3]));
-  Core.p.WriteDword(Ptr($4DACE6 + 15 * 4), integer(@LodTable[4]));
-  Core.p.WriteDword(Ptr($4DACE6 + 15 * 5), integer(@LodTable[5]));
-  Core.p.WriteDword(Ptr($4DACE6 + 15 * 6), integer(@LodTable[6]));
-  Core.p.WriteDword(Ptr($4DACE6 + 15 * 7), integer(@LodTable[7]));
+  PatchApi.p.WriteDword(Ptr($4DACE6 + 15 * 0), integer(@LodTable[0]));
+  PatchApi.p.WriteDword(Ptr($4DACE6 + 15 * 1), integer(@LodTable[1]));
+  PatchApi.p.WriteDword(Ptr($4DACE6 + 15 * 2), integer(@LodTable[2]));
+  PatchApi.p.WriteDword(Ptr($4DACE6 + 15 * 3), integer(@LodTable[3]));
+  PatchApi.p.WriteDword(Ptr($4DACE6 + 15 * 4), integer(@LodTable[4]));
+  PatchApi.p.WriteDword(Ptr($4DACE6 + 15 * 5), integer(@LodTable[5]));
+  PatchApi.p.WriteDword(Ptr($4DACE6 + 15 * 6), integer(@LodTable[6]));
+  PatchApi.p.WriteDword(Ptr($4DACE6 + 15 * 7), integer(@LodTable[7]));
 
   (* Fix refs to LodTable[0] *)
-  Core.p.WriteDword(Ptr($4DAD9D), integer(@LodTable[0]));
-  Core.p.WriteDword(Ptr($4DB1A9), integer(@LodTable[0]));
+  PatchApi.p.WriteDword(Ptr($4DAD9D), integer(@LodTable[0]));
+  PatchApi.p.WriteDword(Ptr($4DB1A9), integer(@LodTable[0]));
 
   (* Fix refs to LodTable[0].F4 *)
-  Core.p.WriteDword(Ptr($4DB1AF), integer(@LodTable[0]) + 4);
-  Core.p.WriteDword(Ptr($4DB275), integer(@LodTable[0]) + 4);
-  Core.p.WriteDword(Ptr($4DB298), integer(@LodTable[0]) + 4);
-  Core.p.WriteDword(Ptr($4DB2F5), integer(@LodTable[0]) + 4);
-  Core.p.WriteDword(Ptr($4DB318), integer(@LodTable[0]) + 4);
-  Core.p.WriteDword(Ptr($4DC029), integer(@LodTable[0]) + 4);
-  Core.p.WriteDword(Ptr($4DC087), integer(@LodTable[0]) + 4);
+  PatchApi.p.WriteDword(Ptr($4DB1AF), integer(@LodTable[0]) + 4);
+  PatchApi.p.WriteDword(Ptr($4DB275), integer(@LodTable[0]) + 4);
+  PatchApi.p.WriteDword(Ptr($4DB298), integer(@LodTable[0]) + 4);
+  PatchApi.p.WriteDword(Ptr($4DB2F5), integer(@LodTable[0]) + 4);
+  PatchApi.p.WriteDword(Ptr($4DB318), integer(@LodTable[0]) + 4);
+  PatchApi.p.WriteDword(Ptr($4DC029), integer(@LodTable[0]) + 4);
+  PatchApi.p.WriteDword(Ptr($4DC087), integer(@LodTable[0]) + 4);
 
   (* Fix refs to LodTypes.Table *)
-  Core.p.WriteDword(Ptr($4DB25D), integer(@LodTypes.Table));
-  Core.p.WriteDword(Ptr($4DB264), integer(@LodTypes.Table));
-  Core.p.WriteDword(Ptr($4DB2E4), integer(@LodTypes.Table));
-  Core.p.WriteDword(Ptr($4DBF0F), integer(@LodTypes.Table));
+  PatchApi.p.WriteDword(Ptr($4DB25D), integer(@LodTypes.Table));
+  PatchApi.p.WriteDword(Ptr($4DB264), integer(@LodTypes.Table));
+  PatchApi.p.WriteDword(Ptr($4DB2E4), integer(@LodTypes.Table));
+  PatchApi.p.WriteDword(Ptr($4DBF0F), integer(@LodTypes.Table));
 
   (* Fix refs to LodTypes.Table.f4 *)
-  Core.p.WriteDword(Ptr($4DB256), integer(@LodTypes.Table) + 4);
+  PatchApi.p.WriteDword(Ptr($4DB256), integer(@LodTypes.Table) + 4);
 
   (* Fix refs to LodTypes.Table.f8 *)
-  Core.p.WriteDword(Ptr($4DB2DD), integer(@LodTypes.Table) + 8);
+  PatchApi.p.WriteDword(Ptr($4DB2DD), integer(@LodTypes.Table) + 8);
 
   (* Fix refs to LodTypes.Table.f12 *)
-  Core.p.WriteDword(Ptr($4DB2D6), integer(@LodTypes.Table) + 12);
+  PatchApi.p.WriteDword(Ptr($4DB2D6), integer(@LodTypes.Table) + 12);
 
-  Core.Hook(@Hook_SetLodTypes, Core.HOOKTYPE_JUMP, 5, Ptr($4DAED0));
+  ApiJack.Hook(Ptr($4DAED0), @Hook_SetLodTypes, nil, 5, ApiJack.HOOKTYPE_JUMP);
 end; // .procedure ExtendLods
 
 procedure LoadZeobjtsExtensions;
-var
-{O} ChildObjList: Lists.TStringList;
-    FileName:     string;
-    FileContents: string;
-
 begin
   {!} Assert(MapObjMan.ZEObjList <> nil);
   Files.Scan(MapObjMan.ZEOBJTS_DIR + '\*.txt', Files.faNotDirectory, '.txt', MapObjMan.LoadZeobjt);
-end; // .procedure LoadZeobjtsExtensions
+end;
 
 function FileIsInLod (const FileName: string; RawLod: pointer): boolean;
 begin
@@ -339,7 +334,7 @@ begin
             end; // .if
           end; // .for
         end else begin
-          Core.NotifyError('Json file has invalid format: "' + ConfigDir + '\' + FoundName + '"');
+          Debug.NotifyError('Json file has invalid format: "' + ConfigDir + '\' + FoundName + '"');
         end; // .else
       end; // .if
     end; // .while
@@ -348,7 +343,7 @@ begin
   FreeAndNil(Config);
 end; // .procedure LoadGlobalRedirectionConfig
 
-function Hook_ReadTxt (Context: Core.PHookContext): LONGBOOL; stdcall;
+function Hook_ReadTxt (Context: ApiJack.PHookContext): LONGBOOL; stdcall;
 const
   ZEOBJTS_NAME = 'zeobjts.txt';
 
@@ -385,13 +380,13 @@ begin
     end; // .else
   end; // .if
 
-  result := Core.EXEC_DEF_CODE;
+  result := true;
 end; // .function Hook_ReadTxt
 
-function Hook_AfterLoadLods (Context: Core.PHookContext): longbool; stdcall;
+function Hook_AfterLoadLods (Context: ApiJack.PHookContext): longbool; stdcall;
 begin
   LoadGlobalRedirectionConfig(GLOBAL_MISSING_REDIRECTIONS_CONFIG_DIR, REDIRECT_ONLY_MISSING);
-  result := Core.EXEC_DEF_CODE;
+  result := true;
 end;
 
 procedure OnInit (Event: MapExt.PEvent); stdcall;
@@ -399,10 +394,10 @@ begin
   ExtendLods;
 
   (* Add support for extended zeobjts.txt *)
-  Core.ApiHook(@Hook_ReadTxt, Core.HOOKTYPE_BRIDGE, Ptr($4DC8D4));
+  ApiJack.Hook(Ptr($4DC8D4), @Hook_ReadTxt);
 
   (* Add support for laod resources redirection mechanism *)
-  Core.ApiHook(@Hook_AfterLoadLods, Core.HOOKTYPE_BRIDGE, Ptr($45BDBB));
+  ApiJack.Hook(Ptr($45BDBB), @Hook_AfterLoadLods);
 end;
 
 begin

@@ -8,7 +8,7 @@ AUTHOR:       Alexander Shostak (aka Berserker aka EtherniDee aka BerSoft)
 uses
   Windows, Math, SysUtils,
   Utils, DataLib, Files, FilesEx, StrLib,
-  Core, PatchApi, WinUtils, Log, DlgMes, CmdApp,
+  Debug, PatchApi, ApiJack, WinUtils, Log, DlgMes, CmdApp,
   VfsImport,
   BinPatching;
 
@@ -16,7 +16,7 @@ const
   (* Command line arguments *)
   CMDLINE_ARG_MODLIST = 'modlist';
 
-  ERA_EDITOR_VERSION        = '3.9';
+  ERA_EDITOR_VERSION        = '3.9.20';
   DEBUG_DIR                 = 'Debug\EraEditor';
   DEBUG_MAPS_DIR            = 'DebugMaps';
   DEBUG_EVENT_LIST_PATH     = DEBUG_DIR + '\event list.txt';
@@ -105,7 +105,7 @@ end;
 procedure RegisterHandler (Handler: TEventHandler; const EventName: string);
 var
 {U} EventInfo: TEventInfo;
-  
+
 begin
   {!} Assert(@Handler <> nil);
   EventInfo := Events[EventName];
@@ -136,7 +136,7 @@ begin
     EventInfo         := TEventInfo.Create;
     Events[EventName] := EventInfo;
   end; // .if
-  
+
   EventInfo.NumTimesFired := EventInfo.NumTimesFired + 1;
 
   if EventInfo.Handlers <> nil then begin
@@ -177,7 +177,7 @@ begin
   EventList := nil;
   EventInfo := nil;
   // * * * * * //
-  {!} Core.ModuleContext.Lock;
+  {!} Debug.ModuleContext.Lock;
 
   with FilesEx.WriteFormattedOutput(GameDir + '\' + DEBUG_EVENT_LIST_PATH) do begin
     Line('> Format: [Event name] ([Number of handlers], [Fired N times])');
@@ -194,25 +194,25 @@ begin
     EmptyLine; EmptyLine;
     Line('> Event handlers');
     EmptyLine;
-    
+
     for i := 0 to EventList.Count - 1 do begin
       EventInfo := TEventInfo(EventList.Values[i]);
-      
+
       if EventInfo.NumHandlers > 0 then begin
         Line(EventList[i] + ':');
       end; // .if
-      
+
       Indent;
 
       for j := 0 to EventInfo.NumHandlers - 1 do begin
-        Line(Core.ModuleContext.AddrToStr(EventInfo.Handlers[j]));
+        Line(Debug.ModuleContext.AddrToStr(EventInfo.Handlers[j]));
       end; // .for
 
       Unindent;
     end; // .for
   end; // .with
 
-  {!} Core.ModuleContext.Unlock;
+  {!} Debug.ModuleContext.Unlock;
   // * * * * * //
   FreeAndNil(EventList);
 end; // .procedure DumpEventList
@@ -268,28 +268,28 @@ begin
   Windows.DisableThreadLibraryCalls(hMe);
   Files.ForcePath(GameDir + '\' + DEBUG_DIR);
   FireEvent('OnLoadSettings', nil, 0);
-  
+
   // Run VFS
   ModListFilePath := CmdApp.GetArg(CMDLINE_ARG_MODLIST);
 
   if ModListFilePath = '' then begin
     ModListFilePath := GameDir + '\' + DEFAULT_MOD_LIST_FILE;
   end;
-  
+
   VfsImport.MapModsFromListA(pchar(GameDir), pchar(ModsDir), pchar(ModListFilePath));
   Log.Write('Core', 'ReportModList', #13#10 + VfsImport.GetMappingsReportA);
 
   if DumpVfsOpt then begin
     Log.Write('Core', 'DumpVFS', #13#10 + VfsImport.GetDetailedMappingsReportA);
   end;
-  
+
   VfsImport.RunVfs(VfsImport.SORT_FIFO);
   VfsImport.RunWatcherA(pchar(GameDir + '\Mods'), 250);
-  
+
   (* Restore default editor constant overwritten by "eramap.dll" *)
   Buffer := 'GetSpreadsheet';
-  Core.WriteAtCode(Length(Buffer) + 1, pointer(Buffer), Ptr($596ED4));
-  
+  ApiJack.WriteAtCode(Length(Buffer) + 1, pointer(Buffer), Ptr($596ED4));
+
   (* GrayFace mapedpatch requires .rdata section to have WRITE flag *)
   Windows.VirtualProtect
   (
@@ -302,7 +302,7 @@ begin
   FireEvent('OnInit', nil, 0);
 
   RegisterHandler(OnGenerateDebugInfo, 'OnGenerateDebugInfo');
-  
+
   LoadPlugins;
   BinPatching.ApplyPatches(PATCHES_PATH);
 end; // .procedure Init
@@ -311,9 +311,9 @@ procedure AsmInit; assembler;
 asm
   (* Remove ret addr *)
   POP ECX
-  
+
   CALL Init
-  
+
   (* Default code *)
   PUSH EBP
   MOV EBP, ESP
@@ -321,7 +321,7 @@ asm
   PUSH $54CA58
   PUSH $4EA77C
   PUSH [FS:0]
-  
+
   (* Place new ret addr *)
   PUSH $4E84EA
   // RET
@@ -343,7 +343,7 @@ begin
     ],
     '~'
   );
-  
+
   Log.Write('Core', 'AssertHandler', CrashMes);
   DlgMes.MsgError(CrashMes);
 
@@ -354,12 +354,12 @@ begin
   AssertErrorProc := AssertHandler;
   PluginsList     := DataLib.NewStrList(not Utils.OWNS_ITEMS, DataLib.CASE_INSENSITIVE);
   Events          := DataLib.NewDict(Utils.OWNS_ITEMS, DataLib.CASE_INSENSITIVE);
-  
+
   // Find out path to game directory and force it as current directory
   GameDir := StrLib.ExtractDirPathW(WinUtils.GetExePath());
   {!} Assert(GameDir <> '', 'Failed to obtain game directory path');
   SysUtils.SetCurrentDir(GameDir);
   ModsDir := GameDir + '\' + MODS_DIR;
 
-  Core.SetDebugMapsDir(GameDir + '\' + DEBUG_MAPS_DIR);
+  Debug.SetDebugMapsDir(GameDir + '\' + DEBUG_MAPS_DIR);
 end.

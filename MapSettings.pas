@@ -6,9 +6,9 @@ AUTHOR:       Alexander Shostak (aka Berserker aka EtherniDee aka BerSoft)
 
 (***)  interface  (***)
 uses
-  SysUtils, Math, Utils, Log, Ini, Core,
+  SysUtils, Math, Utils, Log, Ini, Debug,
   VfsImport, MapExt, EraLog;
-  
+
 const
   GAME_SETTINGS_FILE = 'heroes3.ini';
   LOG_FILE_NAME      = 'log.txt';
@@ -45,7 +45,7 @@ end; // .function GetOptBoolValue
 
 function GetDebugOpt (const OptionName: string; DefValue: boolean = false): boolean;
 begin
-  result := DebugOpt and (DebugEverythingOpt or GetOptBoolValue(OptionName, DefValue)); 
+  result := DebugOpt and (DebugEverythingOpt or GetOptBoolValue(OptionName, DefValue));
 end; // .function GetDebugOpt
 
 function GetOptIntValue (const OptionName: string; DefValue: integer = 0): integer;
@@ -73,7 +73,7 @@ begin
   while Log.Read(LogRec) do begin
     Logger.Write(LogRec.EventSource, LogRec.Operation, LogRec.Description);
   end; // .while
-  
+
   Log.InstallLogger(Logger, Log.FREE_OLD_LOGGER);
 end; // .procedure InstallLogger
 
@@ -95,16 +95,16 @@ begin
   if DebugOpt then begin
     if GetOptValue('Debug.LogDestination', 'File') = 'File' then begin
       InstallLogger(EraLog.TFileLogger.Create(MapExt.DEBUG_DIR + '\' + LOG_FILE_NAME));
-    end else begin     
+    end else begin
       InstallLogger(EraLog.TConsoleLogger.Create('Era Log'));
     end;
   end else begin
-    InstallLogger(EraLog.TMemoryLogger.Create);
+    InstallLogger(EraLog.TFakeLogger.Create);
   end; // .else
 
   Log.Write('Core', 'CheckVersion', 'Result: ' + MapExt.ERA_EDITOR_VERSION);
 
-  Core.AbortOnError := GetDebugOpt('Debug.AbortOnError', true);
+  Debug.AbortOnError := GetDebugOpt('Debug.AbortOnError', true);
 end; // .procedure OnLoadSettings
 
 begin
